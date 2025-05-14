@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Optimized Password Cracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(120deg, #1f2937, #111827);
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .logs-glow {
+            box-shadow: 0 0 10px #10b981 inset;
+        }
+        .button-animation {
+            transition: transform 0.2s ease-in-out;
+        }
+        .button-animation:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="text-white min-h-screen flex items-center justify-center px-4 py-6 font-sans">
+    <div class="glass w-full max-w-2xl p-8 rounded-2xl shadow-2xl">
+        <h1 class="text-4xl text-center font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-400">
+            🚀 Optimized Password Cracker
+        </h1>
+
+        <!-- Upload Form -->
+        <form id="crack-form" enctype="multipart/form-data" class="space-y-4">
+            <div>
+                <label class="block text-sm text-gray-300">🔐 Upload ZIP File</label>
+                <input type="file" name="zipfile" required class="w-full p-2 bg-gray-800 rounded-md border border-gray-600 text-white">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-300">📄 Upload Wordlist</label>
+                <input type="file" name="wordlist" required class="w-full p-2 bg-gray-800 rounded-md border border-gray-600 text-white">
+            </div>
+            <div class="text-center">
+                <button type="submit" onclick="showLoader()" class="button-animation bg-green-500 hover:bg-green-600 px-6 py-2 rounded-lg font-semibold shadow-lg transition duration-200">
+                    Start Cracking
+                </button>
+            </div>
+        </form>
+
+        <!-- Loader -->
+        <div id="loader" class="hidden mt-4 text-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-2"></div>
+            <p class="text-sm text-gray-400">Cracking in progress...</p>
+        </div>
+
+        <!-- Cracking Logs -->
+        <h3 class="mt-6 text-lg font-semibold text-green-400">📡 Cracking Logs:</h3>
+        <div id="logs" class="logs-glow mt-2 h-40 overflow-auto bg-black text-green-300 text-sm p-2 rounded-md font-mono"></div>
+
+        <!-- Cracked Result and Download Links -->
+        <div id="result" class="mt-6 space-y-4"></div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        const form = document.getElementById("crack-form");
+        const logs = document.getElementById("logs");
+        const result = document.getElementById("result");
+
+        form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            logs.innerHTML = '';
+            result.innerHTML = '';
+            showLoader();
+
+            const formData = new FormData(form);
+            await fetch("/upload", {
+                method: "POST",
+                body: formData
+            });
+        });
+
+        socket.on("log", (data) => {
+            const line = document.createElement("div");
+            line.textContent = data;
+            logs.appendChild(line);
+            logs.scrollTop = logs.scrollHeight;
+        });
+
+        socket.on("done", (data) => {
+            document.getElementById("loader").classList.add("hidden");
+
+            if (data.password) {
+                result.innerHTML = `
+                    <div class="p-4 bg-green-800 text-center rounded-lg font-semibold">
+                        ✅ Password Cracked: <span class="text-yellow-300">${data.password}</span>
+                    </div>
+                `;
+
+                if (data.files && data.files.length > 0) {
+                    const fileList = data.files.map(file => `
+                        <li class="flex justify-between items-center">
+                            <span class="text-gray-300">${file}</span>
+                            <a href="/download_file/${file}" class="button-animation text-blue-400 hover:text-blue-600 text-sm underline">
+                                📥 Download
+                            </a>
+                        </li>
+                    `).join("");
+
+                    result.innerHTML += `
+                        <h3 class="text-blue-400 text-lg mt-4 font-semibold">📂 Extracted Files:</h3>
+                        <ul class="space-y-2">${fileList}</ul>
+                    `;
+                }
+            } else {
+                result.innerHTML = `
+                    <div class="p-4 bg-red-800 text-center rounded-lg font-semibold">
+                        ❌ Password not found in wordlist.
+                    </div>
+                `;
+            }
+        });
+
+        function showLoader() {
+            document.getElementById("loader").classList.remove("hidden");
+        }
+    </script>
+</body>
+</html>
